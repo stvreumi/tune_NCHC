@@ -73,8 +73,4 @@ def arg_config():
     return args
 
 if __name__=="__main__":
-    client_start = datetime.now()
     tune_start()
-    client_end = datetime.now()
-    elapsed_client = client_end - client_start
-    print("stop tuning, total running time: ", str(elapsed_client))
