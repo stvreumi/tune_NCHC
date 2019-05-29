@@ -5,7 +5,7 @@ import pprint
 
 pp = pprint.PrettyPrinter(indent=2)
 
-def test_obf(hparam):
+def test_obf(hparam, num):
     x = hparam["x"]
     y = hparam["y"]
     sleep(10)
@@ -26,7 +26,7 @@ def server_setup(address, authkey, obf):
                     print("hyperparameter:")
                     pp.pprint(msg)
                     start = datetime.now()
-                    obf_value = obf(msg)
+                    obf_value = obf(msg, counter)
                     end = datetime.now()
                     elapsed = end - start
                     conn.send("res")

@@ -8,6 +8,16 @@ import json
 from multiprocessing.connection import Client
 import pprint
 from datetime import timedelta, datetime
+import logging
+
+start_time = datetime.now().strftime("%Y%m%d%H%M%S")
+logging.basicConfig(filename='hparams-{}.log'.format(start_time),
+    format='[%(levelname)s] %(message)s', level=logging.INFO)
+# also logggin to console
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+console.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+logging.getLogger('').addHandler(console)
 
 pp = pprint.PrettyPrinter(indent=2)
 INT_HYPER = []
@@ -18,17 +28,17 @@ def tune_start():
     args = arg_config()
     space_file = args.space
     with open(space_file, "r") as f:
-        print("space config:", space_file)
+        logging.info("space config: %s", space_file)
         arg_space = json.load(f)
     for i in arg_space:
         if i["type"] == "int":
             INT_HYPER.append(i["name"])
-    if args.tuning_tool == "optunity":
+    if args.tool == "optunity":
         tune_optunity(arg_space, args.num)
-    elif args.tuning_tool == "hyperopt":
+    elif args.tool == "hyperopt":
         tune_hyperopt(arg_space, args.num)
     else:
-        print("the tuning tool you specified is not supported currently.")
+        logging.info("the tuning tool you specified is not supported currently.")
     
     with Client(domain_socket, authkey=conn_authkey) as conn:
         conn.send("kill connection!")
@@ -51,21 +61,21 @@ def obf(**kwargs):
             val = v
         hparams[k] = val
     with Client(domain_socket, authkey=conn_authkey) as conn:
-        pp.pprint(hparams)
+        logging.info("current hparams:\n%s", pp.pformat(hparams))
         conn.send(hparams)
         while True:
             res_sig = conn.recv()
             if res_sig == "res":
                 res = conn.recv()
-                print("result: ", res)
+                logging.info("result: %s", res)
                 conn.recv() # info
-                print(conn.recv())
+                logging.info(conn.recv())
                 return res
             
 
 def arg_config():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tuning_tool", default="optunity", help="specify the tuning tool \
+    parser.add_argument("--tool", default="optunity", help="specify the tuning tool \
     (optunity/hyperopt), default is optunity")
     parser.add_argument("--num", default=20, help="the number of tuning iteration", type=int)
     parser.add_argument("--space", default="space.json", help="the space config file", type=str)

@@ -5,6 +5,8 @@ import optunity
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from subprocess import run,CalledProcessError
 from datetime import datetime, timedelta
+import logging
+
 
 def tuning_main(tuning_tool, obf, space, evals_num, solver_name="particle swarm", 
     optunity_constraints=None):
@@ -20,19 +22,21 @@ def tuning_main(tuning_tool, obf, space, evals_num, solver_name="particle swarm"
         search with optunity, user can pass the contraint(s) in this parameter
     """
     start_time = datetime.now()
+    result_filename = "{}_result-{}.csv".format(tuning_tool, start_time.strftime("%Y%m%d%H%M%S"))
     if tuning_tool == "optunity":
-        print("start using optunity...")
-        _optunity_exec(obf, evals_num, space, solver_name, optunity_constraints)
+        logging.info("start using optunity...")
+        _optunity_exec(obf, evals_num, space, solver_name, optunity_constraints, result_filename)
     elif tuning_tool == "hyperopt":
-        print("start using hyperopt...")
-        _hyperopt_exec(obf, evals_num, space)
+        logging.info("start using hyperopt...")
+        _hyperopt_exec(obf, evals_num, space, result_filename)
     else:
-        print("the tuning tool you specify is not supported")
+        logging.info("the tuning tool you specify is not supported")
     end_time = datetime.now()
     exec_time = end_time - start_time
-    print("execution time: ", str(exec_time))
+    logging.info("execution time: %s", str(exec_time))
 
-def _optunity_exec(obf, evals_num, space, solver_name, optunity_constraints):
+def _optunity_exec(obf, evals_num, space, solver_name, 
+        optunity_constraints, result_filename):
     if optunity_constraints is None:
         constraint_list = []
     else:
@@ -43,11 +47,10 @@ def _optunity_exec(obf, evals_num, space, solver_name, optunity_constraints):
 
     df = optunity.call_log2dataframe(info.call_log)
     #df = df.sort_values('value', ascending=False)
-    print(df)
-    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-    df.to_csv('optunity_result-{}.csv'.format(current_time))
+    logging.info("\n%s", df)
+    df.to_csv(result_filename)
 
-def _hyperopt_store_result(trials, space):
+def _hyperopt_store_result(trials, space, result_filename):
     """output trials to csv and pickle"""
     with open("hyperopt_result.pickle", "wb") as f:
         pickle.dump(trials.trials, f)
@@ -59,8 +62,7 @@ def _hyperopt_store_result(trials, space):
             t_row = (i_t['tid'], i_t['result']['loss']) + \
                     tuple(i_t['misc']['vals'][h_param][0] for h_param in space_keys)
             data.append(t_row)
-    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-    with open("hyperopt_result-{}.csv".format(current_time), "w") as f:
+    with open(result_filename, "w") as f:
         f_csv=csv.writer(f)
         f_csv.writerow(headers)
         f_csv.writerows(data)
@@ -73,16 +75,16 @@ def _ob_f4hyperopt_wrapper(func):
         return {'loss': func(**params), 'status': STATUS_OK}
     return wrapper
 
-def _hyperopt_exec(obf, evals_num,space):
+def _hyperopt_exec(obf, evals_num,space, result_filename):
     # create trial instance, which can store info during search
     trials = Trials()
     ob_f4hyperopt = _ob_f4hyperopt_wrapper(obf)
     # run fmin to find the optimal hyperparameter
     best = fmin(ob_f4hyperopt, space, algo=tpe.suggest, max_evals=evals_num, trials=trials)
-    print("best: ")
-    print(best)
+    logging.info("best: ")
+    logging.info(best)
 
-    _hyperopt_store_result(trials, space)
+    _hyperopt_store_result(trials, space, result_filename)
 
 def gen_optunity_space(space):
     """generate optunity space"""
@@ -118,12 +120,12 @@ def run_seperate_script(cmd_string,max_run_num=10,sleep_sec=10):
             return True
         except CalledProcessError as e:
             cmd_name = " ".join(cmd_string[:2])
-            print("Error happened when running {cmd_name}:".format(cmd_name=cmd_name))
-            print(str(e.output))
+            logging.info("Error happened when running {cmd_name}:".format(cmd_name=cmd_name))
+            logging.info(str(e.output))
             if run_num < max_run_num:
                 time.sleep(sleep_sec)
                 run_num+=1
-                print("Try again, #{n}!".format(n=run_num))
+                logging.info("Try again, #{n}!".format(n=run_num))
                 continue
             else:
                 return False
