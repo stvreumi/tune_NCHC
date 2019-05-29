@@ -11,13 +11,16 @@ from datetime import timedelta, datetime
 import logging
 
 start_time = datetime.now().strftime("%Y%m%d%H%M%S")
-logging.basicConfig(filename='hparams-{}.log'.format(start_time),
+log_file = 'hparams-{}.log'.format(start_time)
+logging.basicConfig(filename=log_file,
     format='[%(levelname)s] %(message)s', level=logging.INFO)
 # also logggin to console
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 console.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
 logging.getLogger('').addHandler(console)
+
+logging.info("log store to: %s", log_file)
 
 pp = pprint.PrettyPrinter(indent=2)
 INT_HYPER = []

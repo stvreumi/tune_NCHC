@@ -33,6 +33,7 @@ def tuning_main(tuning_tool, obf, space, evals_num, solver_name="particle swarm"
         logging.info("the tuning tool you specify is not supported")
     end_time = datetime.now()
     exec_time = end_time - start_time
+    logging.info("result store to: %s", result_filename)
     logging.info("execution time: %s", str(exec_time))
 
 def _optunity_exec(obf, evals_num, space, solver_name, 
