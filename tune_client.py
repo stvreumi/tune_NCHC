@@ -9,25 +9,17 @@ from multiprocessing.connection import Client
 import pprint
 from datetime import timedelta, datetime
 import logging
-
-start_time = datetime.now().strftime("%Y%m%d%H%M%S")
-log_file = 'hparams-{}.log'.format(start_time)
-logging.basicConfig(filename=log_file,
-    format='[%(levelname)s] %(message)s', level=logging.INFO)
-# also logggin to console
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-console.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-logging.getLogger('').addHandler(console)
-
-logging.info("log store to: %s", log_file)
+import pandas as pd
 
 pp = pprint.PrettyPrinter(indent=2)
 INT_HYPER = []
 domain_socket = "/tmp/tuneconn"
 conn_authkey = b'physionet'
 
-def tune_start():
+def tune_start(script_start_time):
+    with Client(domain_socket, authkey=conn_authkey) as conn:
+        result_path = conn.recv() # recv: path of model resutls
+        logging.info("model results is in: %s", result_path)
     args = arg_config()
     space_file = args.space
     with open(space_file, "r") as f:
@@ -45,6 +37,25 @@ def tune_start():
     
     with Client(domain_socket, authkey=conn_authkey) as conn:
         conn.send("kill connection!")
+        history_dict = conn.recv()
+    # output tuning history
+    print_history(history_dict, script_start_time)
+    
+def print_history(history_dict, script_start_time):
+    history = pd.DataFrame.from_dict(history_dict)
+    cols = set(history.columns.tolist())
+    m_cols = {"index", "value", "elapsed"}
+    h_cols = cols - m_cols
+    cols_order = ["index", "value"] + list(h_cols) + ["elapsed"]
+    h = history.sort_values("value", ascending=False)
+    logging.info("running history(descending in value):\n%s", 
+        h[cols_order].to_string(index=False))
+    h = history.sort_values("index", ascending=True)
+    logging.info("running history(ascending in index):\n%s", 
+        h[cols_order].to_string(index=False))
+    result_name = "history-{}.csv".format(script_start_time)
+    h[cols_order].to_csv(result_name, index=False)
+    logging.info("store results to %s", result_name)
 
 def tune_optunity(arg_space, num):
     space = gen_optunity_space(arg_space)
@@ -74,7 +85,18 @@ def obf(**kwargs):
                 conn.recv() # info
                 logging.info(conn.recv())
                 return res
-            
+
+def logging_config(script_start_time):
+    log_file = 'hparams-{}.log'.format(script_start_time)
+    logging.basicConfig(filename=log_file,
+        format='[%(levelname)s] %(message)s', level=logging.INFO)
+    # also logggin to console
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    console.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+    logging.getLogger('').addHandler(console)
+
+    logging.info("log store to: %s", log_file)            
 
 def arg_config():
     parser = argparse.ArgumentParser()
@@ -86,4 +108,6 @@ def arg_config():
     return args
 
 if __name__=="__main__":
-    tune_start()
+    script_start_time = datetime.now().strftime("%Y%m%d%H%M%S")
+    logging_config(script_start_time)
+    tune_start(script_start_time)

@@ -48,7 +48,7 @@ def _optunity_exec(obf, evals_num, space, solver_name,
 
     df = optunity.call_log2dataframe(info.call_log)
     #df = df.sort_values('value', ascending=False)
-    logging.info("\n%s", df)
+    #logging.info("\n%s", df)
     df.to_csv(result_filename)
 
 def _hyperopt_store_result(trials, space, result_filename):
